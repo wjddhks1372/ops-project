@@ -1,0 +1,17 @@
+
+services:
+  # 웹 애플리케이션 서비스
+  web:
+    build: .             # 현재 디렉토리의 Dockerfile로 빌드
+    ports:
+      - "8000:8000"      # 호스트:컨테이너 포트 매핑
+    depends_on:
+      - redis            # redis가 실행된 후 web이 실행되도록 순서 제어
+    environment:
+      - REDIS_HOST=redis # 환경 변수로 호스트 전달 (확장성 고려)
+
+  # 데이터베이스 서비스
+  redis:
+    image: redis:alpine  # 가장 가벼운 Alpine 리눅스 기반 Redis 이미지
+    ports:
+      - "6379:6379"      # (선택사항) 로컬에서 Redis 직접 접속 필요 시 사용

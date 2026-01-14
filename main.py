@@ -1,29 +1,43 @@
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 import redis
-import os
+import os  # 환경변수 제어를 위한 모듈 임포트
 
 app = FastAPI()
 
+# --- [Configuration] ---
+# 환경변수에서 설정을 가져오며, 없을 경우 기본값(default)을 사용합니다.
+# 보안상 민감한 정보(Password)는 기본값을 두지 않거나 빈 문자열로 처리합니다.
+
+REDIS_HOST = os.getenv("REDIS_HOST", "redis")
+REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", None) # 비밀번호가 없으면 None
+
 # Redis 연결 설정
-# docker-compose에서 서비스 이름을 'redis'로 설정할 것이므로 host에 'redis'를 입력합니다.
-# 포트는 기본 6379입니다.
-r = redis.Redis(host='redis', port=6379, decode_responses=True)
+# password 파라미터를 추가하여 환경변수로 받은 값을 실제로 사용하도록 수정했습니다.
+r = redis.Redis(
+    host=REDIS_HOST,
+    port=REDIS_PORT,
+    password=REDIS_PASSWORD,
+    decode_responses=True
+)
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
     """
-    루트 경로 접속 시:
-    1. Redis의 'visitor_count' 키 값을 1 증가시킵니다.
-    2. 증가된 값을 가져와 HTML에 삽입하여 반환합니다.
+    루트 경로 접속 시 방문자 수를 카운트하고 HTML을 반환합니다.
     """
     try:
-        # 방문자 수 증가 (incr 명령은 키가 없으면 0에서 시작하여 1을 더함)
+        # 방문자 수 증가
         count = r.incr('visitor_count')
+    except redis.AuthenticationError:
+        count = "Redis 인증 실패 (비밀번호 확인 필요)"
     except redis.ConnectionError:
-        count = "Redis 연결 실패"
+        count = "Redis 연결 실패 (호스트/포트 확인 필요)"
+    except Exception as e:
+        count = f"오류 발생: {str(e)}"
 
-    # 예쁜 HTML 응답 생성 (CSS 포함)
+    # HTML 응답 생성
     html_content = f"""
     <!DOCTYPE html>
     <html>
@@ -47,21 +61,11 @@ async def read_root():
                 box-shadow: 0 10px 25px rgba(0,0,0,0.2);
                 text-align: center;
             }}
-            h1 {{
-                font-size: 1.5rem;
-                color: #666;
-                margin-bottom: 0.5rem;
-            }}
             .count {{
                 font-size: 5rem;
                 font-weight: bold;
                 color: #764ba2;
                 margin: 0;
-            }}
-            .footer {{
-                margin-top: 1.5rem;
-                font-size: 0.8rem;
-                color: #aaa;
             }}
         </style>
     </head>
@@ -69,7 +73,7 @@ async def read_root():
         <div class="card">
             <h1>현재 방문자 수</h1>
             <p class="count">{count}</p>
-            <div class="footer">DevOps Portfolio Demo<br>FastAPI + Redis</div>
+            <div class="footer">DevOps Portfolio Demo<br>Secured by Env Vars</div>
         </div>
     </body>
     </html>

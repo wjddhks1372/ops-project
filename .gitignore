@@ -1,0 +1,8 @@
+# Terraform 임시 파일 무시
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.backup
+
+# Infracost 임시 파일 무시
+.infracost/
